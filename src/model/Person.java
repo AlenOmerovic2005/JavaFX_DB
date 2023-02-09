@@ -6,6 +6,12 @@ public class Person {
 
     private String wohnort;
 
+    public Person(int id, String name, String wohnort) {
+        this.id = id;
+        this.name = name;
+        this.wohnort = wohnort;
+    }
+
     public int getId() {
         return id;
     }
