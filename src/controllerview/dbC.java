@@ -1,19 +1,11 @@
 package controllerview;
 
-import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
-import javafx.stage.Stage;
+
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
@@ -24,95 +16,85 @@ import javafx.stage.Stage;
 import model.Person;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 
 public class dbC {
 
-    @FXML
-    private TableView<Person> tableView;
-    @FXML
-    private TableColumn<Person, Integer> idColumn;
-    @FXML
-    private TableColumn<Person, String> nameColumn;
-    @FXML
-    private TableColumn<Person, String> wohnortColumn;
-    @FXML
-    private Button refreshButton;
+
+        private ObservableList<Person> personData = FXCollections.observableArrayList();
+
+        @FXML
+        private TableView<Person> personTable;
+        @FXML
+        private TableColumn<Person, Integer> idColumn;
+        @FXML
+        private TableColumn<Person, String> nameColumn;
+        @FXML
+        private TableColumn<Person, String> wohnortColumn;
+        @FXML
+        private Button refreshButton;
     @FXML
     private Button addButton;
 
-    private Connection conn;
-    private Statement stmt;
-
-    private ObservableList<Person> data = FXCollections.observableArrayList();
-
     @FXML
-    public void initialize() throws SQLException {
-
-        conn = DriverManager.getConnection("jdbc:derby://localhost:1527/personDB");
-        stmt = conn.createStatement();
-        stmt.execute("CREATE TABLE person(id INT PRIMARY KEY, name VARCHAR(50), wohnort VARCHAR(50))");
-
-        // Hier wird das FXML-File geladen und die TableView und Buttons werden erstellt ...
-
-        refreshData();
-
-        addButton.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                try {
-                    FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("AddPerson.fxml"));
-                    Scene scene = new Scene(fxmlLoader.load());
-                    Stage stage = new Stage();
-                    stage.setScene(scene);
-                    stage.initModality(Modality.APPLICATION_MODAL);
-                    stage.showAndWait();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        refreshButton.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                refreshData();
-            }
-        });
-
-
+    private void initialize() {
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         wohnortColumn.setCellValueFactory(new PropertyValueFactory<>("wohnort"));
-        tableView.setItems(data);
+
+        refreshData();
+    }
+
+    @FXML
+    private void handleRefresh() {
+        refreshData();
     }
 
     private void refreshData() {
-        data.clear();
-        try {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM person");
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String name = rs.getString("name");
-                String wohnort = rs.getString("wohnort");
-                data.add(new Person(id, name, wohnort));
+        personData.clear();
+        try (Connection connection = DriverManager.getConnection("jdbc:derby://localhost:1527/personDB")) {
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT PERSON.id, name, wohnort FROM person  join ADRESSE A on PERSON.ID = A.ID ");
+            while (resultSet.next()) {
+                int id = resultSet.getInt("id");
+                String name = resultSet.getString("name");
+                String wohnort = resultSet.getString("wohnort");
+                personData.add(new Person(id, name, wohnort));
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        tableView.setItems(data);
+
+        personTable.setItems(personData);
     }
 
-    private void addPerson(Person person) {
+    @FXML
+    private void handleAdd() {
         try {
-            stmt.executeUpdate("INSERT INTO person VALUES(" + person.getId() + ", '" + person.getName() + "', '" + person.getWohnort() + "')");
-            refreshData();
-        } catch (SQLException e) {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("addV.fxml"));
+            Parent root = loader.load();
+            addC addPersonController = loader.getController();
+            addPersonController.setMainController(this);
+            Stage stage = new Stage();
+            stage.setScene(new Scene(root));
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.showAndWait();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    public void addPerson(Person person) {
+        try (Connection connection = DriverManager.getConnection("jdbc:derby://localhost:1527/personDB")) {
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("INSERT INTO person (id, name) VALUES (" + person.getId() + ", '" + person.getName() + "')");
+            statement.executeUpdate("INSERT INTO ADRESSE (id, WOHNORT) VALUES (" + person.getId() + ", '" + person.getWohnort() + "')");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-
-
+    }
 }
