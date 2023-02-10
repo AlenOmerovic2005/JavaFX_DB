@@ -16,10 +16,7 @@ import javafx.stage.Stage;
 import model.Person;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 
 public class dbC {
 
@@ -57,7 +54,9 @@ public class dbC {
         personData.clear();
         try (Connection connection = DriverManager.getConnection("jdbc:derby://localhost:1527/personDB")) {
             Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT PERSON.id, name, wohnort FROM person  join ADRESSE A on PERSON.ID = A.ID ");
+            //statement.execute("CREATE TABLE person(id INT PRIMARY KEY, name VARCHAR(50))");
+            //statement.execute("CREATE TABLE adresse(id INT, wohnort VARCHAR(50), foreign key (id) references person (id))");
+            ResultSet resultSet = statement.executeQuery("SELECT PERSON.id, name, wohnort FROM person  join adresse A on PERSON.ID = A.ID ");
             while (resultSet.next()) {
                 int id = resultSet.getInt("id");
                 String name = resultSet.getString("name");
@@ -89,9 +88,15 @@ public class dbC {
 
     public void addPerson(Person person) {
         try (Connection connection = DriverManager.getConnection("jdbc:derby://localhost:1527/personDB")) {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("INSERT INTO person (id, name) VALUES (" + person.getId() + ", '" + person.getName() + "')");
-            statement.executeUpdate("INSERT INTO ADRESSE (id, WOHNORT) VALUES (" + person.getId() + ", '" + person.getWohnort() + "')");
+            PreparedStatement personStatement = connection.prepareStatement("INSERT INTO person (id, name) VALUES (?, ?)");
+            personStatement.setInt(1, person.getId());
+            personStatement.setString(2, person.getName());
+            personStatement.executeUpdate();
+
+            PreparedStatement addressStatement = connection.prepareStatement("INSERT INTO ADRESSE (id, WOHNORT) VALUES (?, ?)");
+            addressStatement.setInt(1, person.getId());
+            addressStatement.setString(2, person.getWohnort());
+            addressStatement.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
         }
